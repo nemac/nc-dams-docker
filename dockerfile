@@ -8,8 +8,17 @@ FROM qgis/qgis:latest
 COPY --from=grass-stage /usr/local/bin/grass /usr/local/bin/
 COPY --from=grass-stage /usr/local/grass* /usr/local/grass/
 
-# Install python3-venv
-RUN apt-get update && apt-get install -y python3-venv
+# Install python3-venv and other dependencies
+RUN apt-get update && apt-get install -y \
+    python3-venv \
+    g++ \
+    make \
+    git \
+    cmake \
+    libgdal-dev \
+    libproj-dev \
+    libzstd-dev \
+    && apt-get clean
 
 # Create and activate virtual environment
 RUN python3 -m venv /opt/venv --system-site-packages
@@ -24,6 +33,13 @@ ENV PYTHONPATH="/usr/local/grass/etc/python:${PYTHONPATH:-}"
 
 # Install grass-session in the virtual environment
 RUN pip install grass-session
+
+# Install r.damflood
+RUN GISBASE=/usr/local/grass \
+    PATH=/usr/local/grass/bin:/usr/local/grass/scripts:$PATH \
+    LD_LIBRARY_PATH=/usr/local/grass/lib:$LD_LIBRARY_PATH \
+    grass --text -e -c /tmp/grassdata && \
+    g.extension extension=r.damflood url=https://github.com/OSGeo/grass-addons/tree/grass8/src/raster/r.damflood.git
 
 # Create a script to run both version checks
 RUN echo '#!/bin/bash\necho "QGIS Version:"\nqgis_process -v\necho "\nGRASS GIS Version:"\ngrass -v' > /usr/local/bin/version-check.sh && \
